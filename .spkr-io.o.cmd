@@ -693,6 +693,7 @@ deps_/home/alvaro/Documents/SEU/Proyecto/spkr-io.o := \
   arch/x86/include/asm/vmalloc.h \
     $(wildcard include/config/HAVE_ARCH_HUGE_VMAP) \
   arch/x86/include/asm/pgtable_areas.h \
+  include/linux/i8253.h \
 
 /home/alvaro/Documents/SEU/Proyecto/spkr-io.o: $(deps_/home/alvaro/Documents/SEU/Proyecto/spkr-io.o)
 
