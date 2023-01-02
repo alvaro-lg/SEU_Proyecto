@@ -1,4 +1,4 @@
-obj-m := spkr-io.o
+obj-m := hello.o
 default:
 	$(MAKE) -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
 clean:

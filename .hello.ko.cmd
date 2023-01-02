@@ -1,1 +1,0 @@
-cmd_/home/alvaro/Documents/SEU/Proyecto/hello.ko := ld -r -m elf_x86_64 -z noexecstack --build-id=sha1  -T scripts/module.lds -o /home/alvaro/Documents/SEU/Proyecto/hello.ko /home/alvaro/Documents/SEU/Proyecto/hello.o /home/alvaro/Documents/SEU/Proyecto/hello.mod.o;  true
