@@ -59,7 +59,7 @@ static int __init spkr_init(void) {
     // Debugging
     if (DEBUG) printk(KERN_ALERT "Loading module...");
 
-    alloc_chrdev_region(dev, minor, COUNT, DEV_NAME);
+    /*alloc_chrdev_region(dev, minor, COUNT, DEV_NAME);
 
     // Dando de alta al dispostivo
     if (alloc_chrdev_region(dev, minor, COUNT, DEV_NAME) < 0) {
@@ -75,12 +75,12 @@ static int __init spkr_init(void) {
 
     // Dando de alta el dispositivo en sysfs
     class_ = class_create(THIS_MODULE, CLASS_NAME);
-    dev_ = device_create(class_, NULL, *dev, NULL, DEV_TYPE);
+    dev_ = device_create(class_, NULL, *dev, NULL, DEV_TYPE);*/
     
     raw_spin_lock_irqsave(&i8253_lock, flags); // Critical section
 
     // Device programming
-    outb_p(REG_CTRL, ctrl_reg_val);
+    outb_p(ctrl_reg_val, REG_CTRL);
 
     spkr_set_frequency();
     spkr_on();
@@ -104,7 +104,7 @@ static void __exit spkr_exit(void) {
 
     raw_spin_unlock_irqrestore(&i8253_lock, flags); // End of critical section
     
-    // Dando de baja el dispositivo en sysfs
+    /*// Dando de baja el dispositivo en sysfs
     device_destroy(class_, *dev);
     class_destroy(class_);
 
@@ -112,7 +112,7 @@ static void __exit spkr_exit(void) {
     cdev_del(cdev);
     
     // Dando de baja al dispositivo
-    unregister_chrdev_region(*dev, COUNT);
+    unregister_chrdev_region(*dev, COUNT);*/
 }
 
 static void spkr_on(void) {
@@ -147,8 +147,8 @@ static void spkr_set_frequency(void) {
     if (DEBUG) printk(KERN_ALERT "Reproduciendo sonido a frecuencia de %d Hz", freq);
 
     // Writting parameters
-    outb_p(REG_DATA, (uint8_t) (div));
-    outb_p(REG_DATA, (uint8_t) (div >> 8));
+    outb_p((uint8_t) (div), REG_DATA);
+    outb_p((uint8_t) (div >> 8), REG_DATA);
 }
 
 static int open(struct inode *inode, struct file *filp) {
