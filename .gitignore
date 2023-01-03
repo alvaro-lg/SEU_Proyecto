@@ -1,4 +1,5 @@
 .vscode/**/*
 test.*
-./Module\ example/*
+Module\ example/
 .spkr-io.*
+.{Mm}odules.*
