@@ -1,1 +1,0 @@
-cmd_/home/alvaro/Documents/SEU/Proyecto/spkr-io.ko := ld -r -m elf_x86_64 -z noexecstack --build-id=sha1  -T scripts/module.lds -o /home/alvaro/Documents/SEU/Proyecto/spkr-io.ko /home/alvaro/Documents/SEU/Proyecto/spkr-io.o /home/alvaro/Documents/SEU/Proyecto/spkr-io.mod.o;  true
