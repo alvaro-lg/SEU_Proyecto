@@ -19,13 +19,13 @@ MODULE_LICENSE("GPL");
 #define REG_DATA    0x42
 #define B_PORT      0x61
 #define COUNT       1
-static const char DEV_NAME[] = "spkr";
-static const char CLASS_NAME[] = "speaker";
-static const char DEV_TYPE[] = "int_spkr";
+#define DEV_NAME    "spkr"
+#define CLASS_NAME  "speaker"
+#define DEV_TYPE    "int_spkr"
 
 // Params
-static int freq = 1000;
-static int minor = 1;
+static unsigned int freq = 1000;
+static unsigned int minor = 0;
 module_param(freq, int, S_IRUGO);
 module_param(minor, int, S_IRUGO);
 
@@ -39,8 +39,8 @@ static int release(struct inode *inode, struct file *filp);
 static ssize_t write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos);
 
 // Shared variables
-static dev_t *dev;
-static struct cdev *cdev;
+static dev_t dev;
+static struct cdev cdev;
 static struct file_operations fops = {
     .owner = THIS_MODULE,
     .open = open,
@@ -55,28 +55,26 @@ static int __init spkr_init(void) {
     // Variables
     unsigned long flags;
     uint8_t ctrl_reg_val = 0xb6;
-
+    
     // Debugging
     if (DEBUG) printk(KERN_ALERT "Loading module...");
 
-    /*alloc_chrdev_region(dev, minor, COUNT, DEV_NAME);
-
     // Dando de alta al dispostivo
-    if (alloc_chrdev_region(dev, minor, COUNT, DEV_NAME) < 0) {
+    if (alloc_chrdev_region(&dev, minor, COUNT, DEV_NAME) < 0) {
         if (DEBUG) printk(KERN_INFO "Major number allocation is failed\n");
         return 1; 
     } else {
-        if (DEBUG) printk(KERN_ALERT "Major asignado: %d", MAJOR(*dev));
+        if (DEBUG) printk(KERN_ALERT "Major asignado: %d", MAJOR(dev));
     }
     
     // Creando el dispositivo de caracteres
-    cdev_init(cdev, &fops);
-    cdev_add(cdev, *dev, COUNT);
+    cdev_init(&cdev, &fops);
+    cdev_add(&cdev, dev, COUNT);
 
     // Dando de alta el dispositivo en sysfs
     class_ = class_create(THIS_MODULE, CLASS_NAME);
-    dev_ = device_create(class_, NULL, *dev, NULL, DEV_TYPE);*/
-    
+    dev_ = device_create(class_, NULL, dev, NULL, DEV_TYPE);
+
     raw_spin_lock_irqsave(&i8253_lock, flags); // Critical section
 
     // Device programming
@@ -104,15 +102,15 @@ static void __exit spkr_exit(void) {
 
     raw_spin_unlock_irqrestore(&i8253_lock, flags); // End of critical section
     
-    /*// Dando de baja el dispositivo en sysfs
-    device_destroy(class_, *dev);
+    // Dando de baja el dispositivo en sysfs
+    device_destroy(class_, dev);
     class_destroy(class_);
 
     // Elminando el dispositivo de caracteres
-    cdev_del(cdev);
+    cdev_del(&cdev);
     
     // Dando de baja al dispositivo
-    unregister_chrdev_region(*dev, COUNT);*/
+    unregister_chrdev_region(dev, COUNT);
 }
 
 static void spkr_on(void) {
@@ -163,7 +161,7 @@ static int release(struct inode *inode, struct file *filp) {
 
 static ssize_t write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos) {
     // TODO
-    return (ssize_t) 0;
+    return count;
 }
 
 module_init(spkr_init);
