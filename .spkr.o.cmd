@@ -1,0 +1,1 @@
+cmd_/home/alvaro/Documents/SEU/Proyecto/spkr.o := ld -m elf_x86_64 -z noexecstack   -r -o /home/alvaro/Documents/SEU/Proyecto/spkr.o /home/alvaro/Documents/SEU/Proyecto/spkr-main.o /home/alvaro/Documents/SEU/Proyecto/spkr-io.o

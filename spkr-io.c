@@ -8,109 +8,23 @@
 #include <linux/device.h>
 #include <stdbool.h>
 
-MODULE_AUTHOR("Alvaro Lopez Garcia <alvaro.lopezgar@alumnos.upm.es> &\
- Fabian Villalobos Cayoja <Fabian.villalobos@alumnos.upm.es>");
-MODULE_DESCRIPTION("PC Speaker driver");
-MODULE_LICENSE("GPL");
-
-// Constants
-#define DEBUG       true
-#define REG_CTRL    0x43
-#define REG_DATA    0x42
-#define B_PORT      0x61
-#define COUNT       1
-#define DEV_NAME    "spkr"
-#define CLASS_NAME  "speaker"
-#define DEV_TYPE    "int_spkr"
-
-// Params
-static unsigned int freq = 1000;
-static unsigned int minor = 0;
-module_param(freq, int, S_IRUGO);
-module_param(minor, int, S_IRUGO);
+#include "constants.h" // Custom file for sharing constants
 
 // Funciones del modulo
 static void spkr_on(void);
 static void spkr_off(void);
-static void spkr_set_frequency(void);
-// Funciones de servicio de dispositivo
-static int open(struct inode *inode, struct file *filp);
-static int release(struct inode *inode, struct file *filp);
-static ssize_t write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos);
+static void spkr_set_frequency(unsigned int freq);
 
-// Shared variables
-static dev_t dev;
-static struct cdev cdev;
-static struct file_operations fops = {
-    .owner = THIS_MODULE,
-    .open = open,
-    .release = release,
-    .write = write
-};
-static struct class *class_;
-static struct device *dev_;
+static void spkr_init(void) {
 
-static int __init spkr_init(void) {
-    
-    // Variables
-    unsigned long flags;
     uint8_t ctrl_reg_val = 0xb6;
-    
-    // Debugging
-    if (DEBUG) printk(KERN_ALERT "Loading module...");
-
-    // Dando de alta al dispostivo
-    if (alloc_chrdev_region(&dev, minor, COUNT, DEV_NAME) < 0) {
-        if (DEBUG) printk(KERN_INFO "Major number allocation is failed\n");
-        return 1; 
-    } else {
-        if (DEBUG) printk(KERN_ALERT "Major asignado: %d", MAJOR(dev));
-    }
-    
-    // Creando el dispositivo de caracteres
-    cdev_init(&cdev, &fops);
-    cdev_add(&cdev, dev, COUNT);
-
-    // Dando de alta el dispositivo en sysfs
-    class_ = class_create(THIS_MODULE, CLASS_NAME);
-    dev_ = device_create(class_, NULL, dev, NULL, DEV_TYPE);
-
-    raw_spin_lock_irqsave(&i8253_lock, flags); // Critical section
 
     // Device programming
     outb_p(ctrl_reg_val, REG_CTRL);
-
-    spkr_set_frequency();
-    spkr_on();
-
-    raw_spin_unlock_irqrestore(&i8253_lock, flags); // End of critical section
-    return 0;
 }
 
-static void __exit spkr_exit(void) {
+static void spkr_exit(void) {
     
-    // Variables
-    unsigned long flags;
-
-    // Debugging message
-    if (DEBUG) printk(KERN_ALERT "Unloading module...");
-
-    raw_spin_lock_irqsave(&i8253_lock, flags); // Critical section
-
-    // Disabling the speaker
-    spkr_off();
-
-    raw_spin_unlock_irqrestore(&i8253_lock, flags); // End of critical section
-    
-    // Dando de baja el dispositivo en sysfs
-    device_destroy(class_, dev);
-    class_destroy(class_);
-
-    // Elminando el dispositivo de caracteres
-    cdev_del(&cdev);
-    
-    // Dando de baja al dispositivo
-    unregister_chrdev_region(dev, COUNT);
 }
 
 static void spkr_on(void) {
@@ -137,7 +51,7 @@ static void spkr_off(void) {
  	outb_p(tmp & deact_mask, B_PORT);
 }
 
-static void spkr_set_frequency(void) {
+static void spkr_set_frequency(unsigned int freq) {
 
     // Variables
     uint32_t div = PIT_TICK_RATE / freq;
@@ -148,21 +62,3 @@ static void spkr_set_frequency(void) {
     outb_p((uint8_t) (div), REG_DATA);
     outb_p((uint8_t) (div >> 8), REG_DATA);
 }
-
-static int open(struct inode *inode, struct file *filp) {
-    // TODO
-    return 0;
-}
-
-static int release(struct inode *inode, struct file *filp) {
-    // TODO
-    return 0;
-}
-
-static ssize_t write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos) {
-    // TODO
-    return count;
-}
-
-module_init(spkr_init);
-module_exit(spkr_exit);
