@@ -36,10 +36,11 @@ __used __section("__versions") = {
 	{ 0x34db050b, "_raw_spin_lock_irqsave" },
 	{ 0x75943e25, "i8253_lock" },
 	{ 0x92997ed8, "_printk" },
+	{ 0xe3ec2f2b, "alloc_chrdev_region" },
 	{ 0xbdfb6dbb, "__fentry__" },
 };
 
 MODULE_INFO(depends, "");
 
 
-MODULE_INFO(srcversion, "CC390D0BB9AEDC38FBE7B00");
+MODULE_INFO(srcversion, "61E71039A3C4F74FBD046F3");

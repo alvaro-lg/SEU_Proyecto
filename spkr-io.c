@@ -2,6 +2,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/io.h>
+#include <linux/fs.h>
 #include <linux/i8253.h>
 #include <stdbool.h>
 
@@ -14,10 +15,16 @@ MODULE_LICENSE("GPL");
 #define REG_CTRL    0x43
 #define REG_DATA    0x42
 #define B_PORT      0x61
+#define DEV_NAME    "spkr"
 
-// Frequency param
+// Params
 static int freq = 1000;
+static int minor = 0;
 module_param(freq, int, S_IRUGO);
+module_param(minor, int, S_IRUGO);
+
+// Shared variables
+static dev_t *dev;
 
 static void spkr_on(void);
 static void spkr_off(void);
@@ -28,6 +35,17 @@ static int __init spkr_init(void) {
     // Variables
     unsigned long flags;
     uint8_t ctrl_reg_val = 0xb6;
+    
+    // Dando de alta al dispostivo
+    alloc_chrdev_region(dev, minor, 1, DEV_NAME);
+
+    // TODO: cdev_init
+    // TODO: cdev_add
+
+    // TODO: class_create
+    // TODO: device_create
+
+    // TODO: funciones de acceso a dispositivo
 
     // Debugging
     if (DEBUG) printk(KERN_ALERT "Loading module...");
@@ -59,6 +77,14 @@ static void __exit spkr_exit(void) {
     spkr_off();
 
     raw_spin_unlock_irqrestore(&i8253_lock, flags); // End of critical section
+
+    // TODO: device_destroy
+    // TODO: class_destroy
+
+    // TODO: cdev_del
+
+    // Dando de baja al dispositivo
+    unregister_chrdev_region(dev, 1);
 }
 
 static void spkr_on(void) {
