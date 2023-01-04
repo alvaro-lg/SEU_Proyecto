@@ -105,14 +105,11 @@ module_exit(spkr_exit);
 
 static int open(struct inode *inode, struct file *filp) {
 
-    // TODO Quitar esto
-    if (DEBUG) printk(KERN_ALERT "%d, %d, %d", filp->f_mode, FMODE_READ, FMODE_WRITE);
-    
+    // TODO: Pendiente de ver como leer correctamente el valor del campo f_mode
     if (filp->f_mode == FMODE_READ) { // Apertura en modo lectura
-        if (DEBUG) printk(KERN_ALERT "Accediendo al fichero en modo escritura...");
-    } else if (filp->f_mode == FMODE_WRITE) { // Apertura en modo escritura
-
-        if (atomic_long_read(&write_lock.owner) > 0) { // Dispositivo libre
+        if (DEBUG) printk(KERN_ALERT "Accediendo al fichero en modo lectura...");
+    } else {
+        if (atomic_long_read(&write_lock.owner) == 0) { // Dispositivo libre
             mutex_lock(&write_lock);
             if (DEBUG) printk(KERN_ALERT "Accediendo al fichero en modo escritura...");
         } else { // Dispositivo ocupado
