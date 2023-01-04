@@ -5,9 +5,9 @@
 #include <linux/cdev.h>
 #include <linux/device.h>
 #include <linux/i8253.h>
+#include <linux/mutex.h>
 
 #include "constants.h" // Custom file for sharing constants
-#include "spkr-io.c" // Including hardware-related files
 
 MODULE_AUTHOR("Alvaro Lopez Garcia <alvaro.lopezgar@alumnos.upm.es> &\
  Fabian Villalobos Cayoja <Fabian.villalobos@alumnos.upm.es>");
@@ -20,6 +20,10 @@ static unsigned int minor = 0;
 module_param(freq, int, S_IRUGO);
 module_param(minor, int, S_IRUGO);
 
+// Funciones de spkr-io
+extern void spkr_set_frequency(unsigned int frequency);
+extern void spkr_on(void);
+extern void spkr_off(void);
 // Funciones de servicio de dispositivo
 static int open(struct inode *inode, struct file *filp);
 static int release(struct inode *inode, struct file *filp);
@@ -36,8 +40,9 @@ static struct file_operations fops = {
 };
 static struct class *class_;
 static struct device *dev_;
+static struct mutex write_lock;
 
-static int __init main_init(void) {
+static int __init spkr_init(void) {
 
     // Variables
     unsigned long flags;
@@ -45,13 +50,12 @@ static int __init main_init(void) {
     // Debugging
     if (DEBUG) printk(KERN_ALERT "Loading module...");
 
+    // Inicializacion de variables
+    mutex_init(&write_lock);
+
     // Dando de alta al dispostivo
-    if (alloc_chrdev_region(&dev, minor, COUNT, DEV_NAME) < 0) {
-        if (DEBUG) printk(KERN_INFO "Major number allocation is failed\n");
-        return 1; 
-    } else {
-        if (DEBUG) printk(KERN_ALERT "Major asignado: %d", MAJOR(dev));
-    }
+    alloc_chrdev_region(&dev, minor, COUNT, DEV_NAME);
+    if (DEBUG) printk(KERN_ALERT "Major asignado: %d", MAJOR(dev));
     
     // Creando el dispositivo de caracteres
     cdev_init(&cdev, &fops);
@@ -64,7 +68,6 @@ static int __init main_init(void) {
     // Using spkr-io functions
     raw_spin_lock_irqsave(&i8253_lock, flags); // Critical section
 
-    spkr_init();
     spkr_set_frequency(freq);
     spkr_on();
 
@@ -72,7 +75,7 @@ static int __init main_init(void) {
     return 0;
 }
 
-static void __exit main_exit(void) {
+static void __exit spkr_exit(void) {
 
     // Variables
     unsigned long flags;
@@ -83,7 +86,6 @@ static void __exit main_exit(void) {
     raw_spin_lock_irqsave(&i8253_lock, flags); // Critical section
 
     spkr_off();
-    spkr_exit();
 
     raw_spin_unlock_irqrestore(&i8253_lock, flags); // End of critical section
     
@@ -98,16 +100,32 @@ static void __exit main_exit(void) {
     unregister_chrdev_region(dev, COUNT);
 }
 
-module_init(main_init);
-module_exit(main_exit);
+module_init(spkr_init);
+module_exit(spkr_exit);
 
 static int open(struct inode *inode, struct file *filp) {
-    // TODO
+
+    // TODO Quitar esto
+    if (DEBUG) printk(KERN_ALERT "%d, %d, %d", filp->f_mode, FMODE_READ, FMODE_WRITE);
+    
+    if (filp->f_mode == FMODE_READ) { // Apertura en modo lectura
+        if (DEBUG) printk(KERN_ALERT "Accediendo al fichero en modo escritura...");
+    } else if (filp->f_mode == FMODE_WRITE) { // Apertura en modo escritura
+
+        if (atomic_long_read(&write_lock.owner) > 0) { // Dispositivo libre
+            mutex_lock(&write_lock);
+            if (DEBUG) printk(KERN_ALERT "Accediendo al fichero en modo escritura...");
+        } else { // Dispositivo ocupado
+            if (DEBUG) printk(KERN_ALERT "Acceso al fichero en modo escritura bloqueado");
+            return -EBUSY;
+        }
+    }
     return 0;
 }
 
 static int release(struct inode *inode, struct file *filp) {
-    // TODO
+    mutex_unlock(&write_lock);
+    if (DEBUG) printk(KERN_ALERT "Liberando el acceso al fichero...");
     return 0;
 }
 

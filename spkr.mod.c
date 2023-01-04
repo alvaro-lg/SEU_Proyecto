@@ -32,11 +32,14 @@ __used __section("__versions") = {
 	{ 0x2d725fd4, "cdev_init" },
 	{ 0xf247fba3, "param_ops_int" },
 	{ 0x82e7bb9c, "device_destroy" },
+	{ 0x3213f038, "mutex_unlock" },
 	{ 0x6091b333, "unregister_chrdev_region" },
 	{ 0x4c55f5ef, "pv_ops" },
 	{ 0x75943e25, "i8253_lock" },
 	{ 0x5b8239ca, "__x86_return_thunk" },
 	{ 0xd35cce70, "_raw_spin_unlock_irqrestore" },
+	{ 0xcefb0c9f, "__mutex_init" },
+	{ 0x4dfa8d4b, "mutex_lock" },
 	{ 0xefc94da8, "device_create" },
 	{ 0xc378cea7, "cdev_add" },
 	{ 0x92997ed8, "_printk" },
@@ -51,4 +54,4 @@ __used __section("__versions") = {
 MODULE_INFO(depends, "");
 
 
-MODULE_INFO(srcversion, "24DE18197BAD28C987358ED");
+MODULE_INFO(srcversion, "F10ADED8C970E4944420761");

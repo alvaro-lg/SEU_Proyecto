@@ -1,3 +1,5 @@
+#include <stdbool.h>
+
 #define DEBUG       true
 #define COUNT       1
 #define REG_CTRL    0x43

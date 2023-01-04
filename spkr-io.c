@@ -1,45 +1,24 @@
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/io.h>
-#include <linux/fs.h>
 #include <linux/i8253.h>
-#include <linux/cdev.h>
-#include <linux/device.h>
-#include <stdbool.h>
+#include <linux/io.h>
 
 #include "constants.h" // Custom file for sharing constants
 
-// Funciones del modulo
-static void spkr_on(void);
-static void spkr_off(void);
-static void spkr_set_frequency(unsigned int freq);
+void spkr_on(void) {
 
-static void spkr_init(void) {
+    // Variables
+    uint8_t tmp, act_mask = 0x03, ctrl_reg_val = 0xb6;
 
-    uint8_t ctrl_reg_val = 0xb6;
+    if (DEBUG) printk(KERN_ALERT "Activating speaker...");
 
     // Device programming
     outb_p(ctrl_reg_val, REG_CTRL);
-}
-
-static void spkr_exit(void) {
-    
-}
-
-static void spkr_on(void) {
-
-    // Variables
-    uint8_t tmp, act_mask = 0x03;
-
-    if (DEBUG) printk(KERN_ALERT "Activating speaker...");
 
     // Activating speaker
     tmp = inb_p(B_PORT);
  	outb_p(tmp | act_mask, B_PORT);
 }
 
-static void spkr_off(void) {
+void spkr_off(void) {
 
     // Variables
     uint8_t tmp, deact_mask = ~0x03;
@@ -51,7 +30,7 @@ static void spkr_off(void) {
  	outb_p(tmp & deact_mask, B_PORT);
 }
 
-static void spkr_set_frequency(unsigned int freq) {
+void spkr_set_frequency(unsigned int freq) {
 
     // Variables
     uint32_t div = PIT_TICK_RATE / freq;
