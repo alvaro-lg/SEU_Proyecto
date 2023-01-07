@@ -8,6 +8,7 @@
 #include <linux/mutex.h>
 #include <linux/wait.h>
 #include <linux/sched.h>
+#include <asm/uaccess.h>
 
 #include "constants.h" // Custom file for sharing constants
 
@@ -41,6 +42,7 @@ static struct info_dispo {
     struct device *dev_;
     struct mutex write_lock;
     struct file_operations fops;
+    wait_queue_head_t lista_bloq;
 } info;
 static struct last_write_t {
     uint16_t hz, ms;
@@ -65,6 +67,7 @@ static int __init spkr_init(void) {
         .release = release,
         .write = write
     };
+    init_waitqueue_head(&info.lista_bloq);
 
     // Dando de alta al dispostivo
     alloc_chrdev_region(&info.dev, minor, COUNT, DEV_NAME);
@@ -162,23 +165,23 @@ static ssize_t write(struct file *filp, const char __user *buf, size_t count, lo
 
         if ((i + last_write.parity) % WRITE_SIZE == 0) { // First byte of sound
 
-            if (get_user(last_write.byte_lo, buf + i) < 0)
+            if (get_user(last_write.byte_lo, buf + i) != 0)
                 return -EFAULT;
 
         } else if ((i + last_write.parity) % WRITE_SIZE == 1) { // Second byte of sound
 
-            if (get_user(last_write.byte_hi, buf + i) < 0)
+            if (get_user(last_write.byte_hi, buf + i) != 0)
                 return -EFAULT;
             last_write.ms = ((uint16_t) last_write.byte_hi << 8) | (uint16_t) last_write.byte_lo;
 
         } else if ((i + last_write.parity) % WRITE_SIZE == 2) { // Third byte of sound
             
-            if (get_user(last_write.byte_lo, buf + i) < 0)
+            if (get_user(last_write.byte_lo, buf + i) != 0)
                 return -EFAULT;
 
         } else { // Reading last byte of a hole sound
 
-            if (get_user(last_write.byte_hi, buf + i) < 0)
+            if (get_user(last_write.byte_hi, buf + i) != 0)
                 return -EFAULT;
             last_write.hz = ((uint16_t) last_write.byte_hi << 8) | (uint16_t) last_write.byte_lo;
 
@@ -186,17 +189,16 @@ static ssize_t write(struct file *filp, const char __user *buf, size_t count, lo
             raw_spin_lock_irqsave(&i8253_lock, flags);
             spkr_set_frequency(last_write.hz);
             spkr_on();
-            raw_spin_unlock_irqrestore(&i8253_lock, flags);
 
             // Wating
-            timer.expires += msecs_to_jiffies(last_write.ms);
+            timer.expires = jiffies + msecs_to_jiffies(last_write.ms);
             add_timer(&timer);
 
             // Blocking process
-
+            if (wait_event_interruptible(info.lista_bloq, timer.expires <= jiffies) != 0)
+                return -ERESTARTSYS;
 
             // Muting speaker
-            raw_spin_lock_irqsave(&i8253_lock, flags);
             spkr_off();
             raw_spin_unlock_irqrestore(&i8253_lock, flags);
         }
@@ -208,6 +210,8 @@ static ssize_t write(struct file *filp, const char __user *buf, size_t count, lo
     return count;
 }
 
-void interrupcion_temporizador(struct timer_list *t) { 
-    // TODO desbloquear proceso esperando;
+void interrupcion_temporizador(struct timer_list *t) {
+
+    // Waking up process
+    wake_up_interruptible(&info.lista_bloq);
 }
