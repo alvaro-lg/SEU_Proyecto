@@ -30,7 +30,9 @@ __used __section("__versions") = {
 	{ 0xf704969, "module_layout" },
 	{ 0xc946dda0, "cdev_del" },
 	{ 0x2d725fd4, "cdev_init" },
+	{ 0x13d0adf7, "__kfifo_out" },
 	{ 0xf247fba3, "param_ops_int" },
+	{ 0x139f2189, "__kfifo_alloc" },
 	{ 0x82e7bb9c, "device_destroy" },
 	{ 0xc6f46339, "init_timer_key" },
 	{ 0x3213f038, "mutex_unlock" },
@@ -62,9 +64,10 @@ __used __section("__versions") = {
 	{ 0x7f02188f, "__msecs_to_jiffies" },
 	{ 0x325cb5cb, "__class_create" },
 	{ 0xe3ec2f2b, "alloc_chrdev_region" },
+	{ 0x30a80826, "__kfifo_from_user" },
 };
 
 MODULE_INFO(depends, "");
 
 
-MODULE_INFO(srcversion, "FBB02F94874BE2FF752A6D1");
+MODULE_INFO(srcversion, "99CF464D945719323001509");

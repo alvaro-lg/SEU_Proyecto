@@ -1,2 +1,2 @@
-/home/alvaro/Documents/SEU/Proyecto/spkr-main.o /home/alvaro/Documents/SEU/Proyecto/spkr-io.o
+/home/ubuntu/Documentos/SEU/Proyecto_P1/spkr-main.o /home/ubuntu/Documentos/SEU/Proyecto_P1/spkr-io.o
 

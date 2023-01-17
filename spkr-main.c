@@ -8,6 +8,7 @@
 #include <linux/mutex.h>
 #include <linux/wait.h>
 #include <linux/sched.h>
+#include <linux/kfifo.h>
 #include <asm/uaccess.h>
 
 #include "constants.h" // Custom file for sharing constants
@@ -20,8 +21,10 @@ MODULE_LICENSE("GPL");
 // Params
 static unsigned int freq = 0;
 static unsigned int minor = 0;
+static unsigned int buffersize = 0;
 module_param(freq, int, S_IRUGO);
 module_param(minor, int, S_IRUGO);
+module_param(buffersize, int, S_IRUGO);
 
 // Funciones de spkr-io
 extern void spkr_set_frequency(unsigned int frequency);
@@ -31,8 +34,9 @@ extern void spkr_off(void);
 static int open(struct inode *inode, struct file *filp);
 static int release(struct inode *inode, struct file *filp);
 static ssize_t write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos);
+void programar_sonido(struct timer_list *timer);
 // Rutina de atención a la interrupcion del timer
-static void interrupcion_temporizador(struct timer_list *t);
+void interrupcion_temporizador(struct timer_list *t);
 
 // Shared variables
 static struct info_dispo {
@@ -49,18 +53,19 @@ static struct last_write_t {
     uint8_t byte_lo, byte_hi;
     int parity;
 } last_write;
+struct kfifo int_buff;
 
 static int __init spkr_init(void) {
 
     // Variables
     unsigned long flags;
+    int ret;
     
     // Debugging
     if (DEBUG) printk(KERN_ALERT "Loading module...");
 
     // Inicializacion de variables
     mutex_init(&info.write_lock);
-    last_write.parity = 0;
     info.fops = (struct file_operations) {
         .owner = THIS_MODULE,
         .open = open,
@@ -68,6 +73,15 @@ static int __init spkr_init(void) {
         .write = write
     };
     init_waitqueue_head(&info.lista_bloq);
+    if (buffersize == 0)
+        last_write.parity = 0;
+    else {
+        ret = kfifo_alloc(&int_buff, buffersize, GFP_KERNEL);
+        if (ret) {
+            printk(KERN_ALERT "Error en kfifo_alloc\n");
+            return ret;
+        }
+    }
 
     // Dando de alta al dispostivo
     alloc_chrdev_region(&info.dev, minor, COUNT, DEV_NAME);
@@ -153,65 +167,123 @@ static int release(struct inode *inode, struct file *filp) {
 static ssize_t write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos) {
     
     // Variables
-    int i;
+    int i, cpy_size, ret;
     struct timer_list timer;
     unsigned long flags;
+    unsigned int copied;
 
     // Inizialitation
     timer_setup(&timer, interrupcion_temporizador, 0);
 
-    // Reading data on buffer
-    for (i = 0; i < count; i++) {
+    if (buffersize == 0) { // Escritura sin buffer
 
-        if ((i + last_write.parity) % WRITE_SIZE == 0) { // First byte of sound
+        // Reading data on buffer
+        for (i = 0; i < count; i++) {
 
-            if (get_user(last_write.byte_lo, buf + i) != 0)
-                return -EFAULT;
+            if ((i + last_write.parity) % WRITE_SIZE == 0) { // First byte of sound
 
-        } else if ((i + last_write.parity) % WRITE_SIZE == 1) { // Second byte of sound
+                if (get_user(last_write.byte_lo, buf + i) != 0)
+                    return -EFAULT;
 
-            if (get_user(last_write.byte_hi, buf + i) != 0)
-                return -EFAULT;
-            last_write.ms = ((uint16_t) last_write.byte_hi << 8) | (uint16_t) last_write.byte_lo;
+            } else if ((i + last_write.parity) % WRITE_SIZE == 1) { // Second byte of sound
 
-        } else if ((i + last_write.parity) % WRITE_SIZE == 2) { // Third byte of sound
+                if (get_user(last_write.byte_hi, buf + i) != 0)
+                    return -EFAULT;
+                last_write.ms = ((uint16_t) last_write.byte_hi << 8) | (uint16_t) last_write.byte_lo;
+
+            } else if ((i + last_write.parity) % WRITE_SIZE == 2) { // Third byte of sound
+                
+                if (get_user(last_write.byte_lo, buf + i) != 0)
+                    return -EFAULT;
+
+            } else { // Reading last byte of a hole sound
+
+                if (get_user(last_write.byte_hi, buf + i) != 0)
+                    return -EFAULT;
+                last_write.hz = ((uint16_t) last_write.byte_hi << 8) | (uint16_t) last_write.byte_lo;
+
+                // Emmiting sound
+                raw_spin_lock_irqsave(&i8253_lock, flags);
+                spkr_set_frequency(last_write.hz);
+                spkr_on();
+                raw_spin_unlock_irqrestore(&i8253_lock, flags);
+
+                // Wating
+                timer.expires = jiffies + msecs_to_jiffies(last_write.ms);
+                add_timer(&timer);
+
+                // Blocking process
+                if (wait_event_interruptible(info.lista_bloq, timer.expires <= jiffies) != 0)
+                    return -ERESTARTSYS;
+
+                // Muting speaker
+                raw_spin_lock_irqsave(&i8253_lock, flags);
+                spkr_off();
+                raw_spin_unlock_irqrestore(&i8253_lock, flags);
+            }
+        }
+
+        // Changing parity accordingly
+        last_write.parity = (last_write.parity + count) % WRITE_SIZE;
+
+    } else { // Escritura con buffer
+
+        i = 0;
+
+        while (i < count) {
             
-            if (get_user(last_write.byte_lo, buf + i) != 0)
-                return -EFAULT;
-
-        } else { // Reading last byte of a hole sound
-
-            if (get_user(last_write.byte_hi, buf + i) != 0)
-                return -EFAULT;
-            last_write.hz = ((uint16_t) last_write.byte_hi << 8) | (uint16_t) last_write.byte_lo;
-
-            // Emmiting sound
-            raw_spin_lock_irqsave(&i8253_lock, flags);
-            spkr_set_frequency(last_write.hz);
-            spkr_on();
-
-            // Wating
-            timer.expires = jiffies + msecs_to_jiffies(last_write.ms);
-            add_timer(&timer);
+            // Copying next chunk of bytes
+            cpy_size = min((int) count - i, (int) kfifo_avail(&int_buff));
+            ret = kfifo_from_user(&int_buff, buf + i, cpy_size, &copied);
+            programar_sonido(&timer);
 
             // Blocking process
             if (wait_event_interruptible(info.lista_bloq, timer.expires <= jiffies) != 0)
                 return -ERESTARTSYS;
-
-            // Muting speaker
-            spkr_off();
-            raw_spin_unlock_irqrestore(&i8253_lock, flags);
         }
     }
 
-    // Changing parity accordingly
-    last_write.parity = (last_write.parity + count) % WRITE_SIZE;
+    // Muting speaker
+    raw_spin_lock_irqsave(&i8253_lock, flags);
+    spkr_off();
+    raw_spin_unlock_irqrestore(&i8253_lock, flags);
 
     return count;
 }
 
-void interrupcion_temporizador(struct timer_list *t) {
+void interrupcion_temporizador(struct timer_list *timer) {
 
-    // Waking up process
-    wake_up_interruptible(&info.lista_bloq);
+    // Auxiliary variables
+    unsigned long flags;
+
+    // Muting speaker
+    raw_spin_lock_irqsave(&i8253_lock, flags);
+    spkr_off();
+    raw_spin_unlock_irqrestore(&i8253_lock, flags);
+
+    if (kfifo_avail(&int_buff) >= WRITE_SIZE)
+        programar_sonido(timer);
+    else
+        wake_up_interruptible(&info.lista_bloq);    
+}
+
+void programar_sonido(struct timer_list *timer) {
+
+    // Auxiliary variables
+    unsigned int ms = 0, hz = 0, ret;
+    unsigned long flags;
+    
+    // Extracting parameters
+    ret = kfifo_out(&int_buff, &ms, 2);
+    ret = kfifo_out(&int_buff, &hz, 2);
+
+    // Emmiting sound
+    raw_spin_lock_irqsave(&i8253_lock, flags);
+    spkr_set_frequency(hz);
+    spkr_on();
+    raw_spin_unlock_irqrestore(&i8253_lock, flags);
+
+    // Wating
+    timer->expires = jiffies + msecs_to_jiffies(ms);
+    add_timer(timer); 
 }
