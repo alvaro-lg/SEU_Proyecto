@@ -34,7 +34,7 @@ extern void spkr_off(void);
 static int open(struct inode *inode, struct file *filp);
 static int release(struct inode *inode, struct file *filp);
 static ssize_t write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos);
-void programar_sonido(struct timer_list *timer);
+void programar_sonido(void);
 // Rutina de atención a la interrupcion del timer
 void interrupcion_temporizador(struct timer_list *t);
 
@@ -53,7 +53,8 @@ static struct last_write_t {
     uint8_t byte_lo, byte_hi;
     int parity;
 } last_write;
-struct kfifo int_buff;
+static struct kfifo int_buff;
+static struct timer_list timer;
 
 static int __init spkr_init(void) {
 
@@ -168,7 +169,6 @@ static ssize_t write(struct file *filp, const char __user *buf, size_t count, lo
     
     // Variables
     int i, cpy_size, ret;
-    struct timer_list timer;
     unsigned long flags;
     unsigned int copied;
 
@@ -215,11 +215,6 @@ static ssize_t write(struct file *filp, const char __user *buf, size_t count, lo
                 // Blocking process
                 if (wait_event_interruptible(info.lista_bloq, timer.expires <= jiffies) != 0)
                     return -ERESTARTSYS;
-
-                // Muting speaker
-                raw_spin_lock_irqsave(&i8253_lock, flags);
-                spkr_off();
-                raw_spin_unlock_irqrestore(&i8253_lock, flags);
             }
         }
 
@@ -235,7 +230,12 @@ static ssize_t write(struct file *filp, const char __user *buf, size_t count, lo
             // Copying next chunk of bytes
             cpy_size = min((int) count - i, (int) kfifo_avail(&int_buff));
             ret = kfifo_from_user(&int_buff, buf + i, cpy_size, &copied);
-            programar_sonido(&timer);
+
+            if (DEBUG) printk(KERN_ALERT "Copiando %d Bytes al buffer interno...", cpy_size);
+
+            programar_sonido();
+
+            i += cpy_size;
 
             // Blocking process
             if (wait_event_interruptible(info.lista_bloq, timer.expires <= jiffies) != 0)
@@ -253,21 +253,13 @@ static ssize_t write(struct file *filp, const char __user *buf, size_t count, lo
 
 void interrupcion_temporizador(struct timer_list *timer) {
 
-    // Auxiliary variables
-    unsigned long flags;
-
-    // Muting speaker
-    raw_spin_lock_irqsave(&i8253_lock, flags);
-    spkr_off();
-    raw_spin_unlock_irqrestore(&i8253_lock, flags);
-
-    if (kfifo_avail(&int_buff) >= WRITE_SIZE)
-        programar_sonido(timer);
+    if (buffersize == 0 || kfifo_len(&int_buff) < WRITE_SIZE)
+        wake_up_interruptible(&info.lista_bloq);
     else
-        wake_up_interruptible(&info.lista_bloq);    
+        programar_sonido();
 }
 
-void programar_sonido(struct timer_list *timer) {
+void programar_sonido(void) {
 
     // Auxiliary variables
     unsigned int ms = 0, hz = 0, ret;
@@ -284,6 +276,6 @@ void programar_sonido(struct timer_list *timer) {
     raw_spin_unlock_irqrestore(&i8253_lock, flags);
 
     // Wating
-    timer->expires = jiffies + msecs_to_jiffies(ms);
-    add_timer(timer); 
+    timer.expires = jiffies + msecs_to_jiffies(ms);
+    add_timer(&timer); 
 }
