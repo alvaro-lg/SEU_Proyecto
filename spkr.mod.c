@@ -61,6 +61,7 @@ __used __section("__versions") = {
 	{ 0x65487097, "__x86_indirect_thunk_rax" },
 	{ 0xbdfb6dbb, "__fentry__" },
 	{ 0x34db050b, "_raw_spin_lock_irqsave" },
+	{ 0xdb760f52, "__kfifo_free" },
 	{ 0x3eeb2322, "__wake_up" },
 	{ 0x8c26d495, "prepare_to_wait_event" },
 	{ 0x933c4a18, "class_destroy" },
@@ -75,4 +76,4 @@ __used __section("__versions") = {
 MODULE_INFO(depends, "");
 
 
-MODULE_INFO(srcversion, "E1FB697ED9E8320BB13CCAD");
+MODULE_INFO(srcversion, "37B37411C73CEA28ED4AE75");

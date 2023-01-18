@@ -117,6 +117,10 @@ static void __exit spkr_exit(void) {
     if (DEBUG) printk(KERN_ALERT "Unloading module...");
 
     spkr_off();
+
+    if (buffersize != 0) {
+        kfifo_free(&int_buff);
+    }
     
     // Dando de baja el dispositivo en sysfs
     device_destroy(info.class_, info.dev);
