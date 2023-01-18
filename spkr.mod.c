@@ -33,6 +33,8 @@ __used __section("__versions") = {
 	{ 0x13d0adf7, "__kfifo_out" },
 	{ 0xf247fba3, "param_ops_int" },
 	{ 0x139f2189, "__kfifo_alloc" },
+	{ 0x54b1fac6, "__ubsan_handle_load_invalid_value" },
+	{ 0xc3690fc, "_raw_spin_lock_bh" },
 	{ 0x82e7bb9c, "device_destroy" },
 	{ 0xc6f46339, "init_timer_key" },
 	{ 0x3213f038, "mutex_unlock" },
@@ -42,6 +44,7 @@ __used __section("__versions") = {
 	{ 0x75943e25, "i8253_lock" },
 	{ 0x15ba50a6, "jiffies" },
 	{ 0xd9a5ea54, "__init_waitqueue_head" },
+	{ 0x6b10bee1, "_copy_to_user" },
 	{ 0x5b8239ca, "__x86_return_thunk" },
 	{ 0xd35cce70, "_raw_spin_unlock_irqrestore" },
 	{ 0xcefb0c9f, "__mutex_init" },
@@ -51,6 +54,7 @@ __used __section("__versions") = {
 	{ 0xfe487975, "init_wait_entry" },
 	{ 0xc378cea7, "cdev_add" },
 	{ 0x800473f, "__cond_resched" },
+	{ 0xe46021ca, "_raw_spin_unlock_bh" },
 	{ 0xd0da656b, "__stack_chk_fail" },
 	{ 0x1000e51, "schedule" },
 	{ 0x92997ed8, "_printk" },
@@ -62,6 +66,7 @@ __used __section("__versions") = {
 	{ 0x933c4a18, "class_destroy" },
 	{ 0x92540fbf, "finish_wait" },
 	{ 0x7f02188f, "__msecs_to_jiffies" },
+	{ 0x13c49cc2, "_copy_from_user" },
 	{ 0x325cb5cb, "__class_create" },
 	{ 0xe3ec2f2b, "alloc_chrdev_region" },
 	{ 0x30a80826, "__kfifo_from_user" },
@@ -70,4 +75,4 @@ __used __section("__versions") = {
 MODULE_INFO(depends, "");
 
 
-MODULE_INFO(srcversion, "62DD0D419EA73B36A71044E");
+MODULE_INFO(srcversion, "E1FB697ED9E8320BB13CCAD");

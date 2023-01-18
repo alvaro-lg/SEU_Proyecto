@@ -9,3 +9,7 @@
 #define DEV_NAME    "spkr"
 #define CLASS_NAME  "speaker"
 #define DEV_TYPE    "int_spkr"
+
+#define SPKR_IOC_MAGIC '9'
+#define SPKR_SET_MUTE_STATE _IOW(SPKR_IOC_MAGIC, 1, int)
+#define SPKR_GET_MUTE_STATE _IOR(SPKR_IOC_MAGIC, 2, int)
