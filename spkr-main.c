@@ -85,7 +85,7 @@ static int __init spkr_init(void) {
     if (buffersize == 0)
         last_write.parity = 0;
     else {
-        ret = kfifo_alloc(&int_buff, min((int) buffersize, WRITE_SIZE), GFP_KERNEL);
+        ret = kfifo_alloc(&int_buff, min((int) buffersize, SOUND_SIZE), GFP_KERNEL);
         if (ret) {
             printk(KERN_ALERT "Error en kfifo_alloc\n");
             return ret;
@@ -176,7 +176,7 @@ static ssize_t write(struct file *filp, const char __user *buf, size_t count, lo
         // Reading data on buffer
         for (i = 0; i < count; i++) {
 
-            switch ((i + last_write.parity) % WRITE_SIZE) {
+            switch ((i + last_write.parity) % SOUND_SIZE) {
                 case 0: // First byte of sound
 
                     if (get_user(last_write.byte_lo, buf + i) != 0)
@@ -219,7 +219,7 @@ static ssize_t write(struct file *filp, const char __user *buf, size_t count, lo
         }
 
         // Changing parity accordingly
-        last_write.parity = (last_write.parity + count) % WRITE_SIZE;
+        last_write.parity = (last_write.parity + count) % SOUND_SIZE;
 
     } else { // Escritura con buffer
 
@@ -235,7 +235,7 @@ static ssize_t write(struct file *filp, const char __user *buf, size_t count, lo
 
             i += cpy_size;
 
-            if (kfifo_len(&int_buff) >= WRITE_SIZE) {
+            if (kfifo_len(&int_buff) >= SOUND_SIZE) {
 
                 programar_sonido();
 
@@ -256,7 +256,7 @@ void interrupcion_temporizador(struct timer_list *timer) {
 
     spin_lock_bh(&info.irq_slock);
 
-    if (buffersize == 0 || kfifo_len(&int_buff) < WRITE_SIZE)
+    if (buffersize == 0 || kfifo_len(&int_buff) < SOUND_SIZE)
         wake_up_interruptible(&info.lista_bloq);
     else
         programar_sonido();
