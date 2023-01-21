@@ -46,8 +46,8 @@ static struct info_dispo {
     struct cdev cdev;
     struct class *class_;
     struct device *dev_;
-    struct mutex write_lock;
     struct file_operations fops;
+    atomic_t opened;
     spinlock_t mute_slock;
     spinlock_t irq_slock;
     wait_queue_head_t lista_bloq;
@@ -69,11 +69,11 @@ static int __init spkr_init(void) {
     if (DEBUG) printk(KERN_ALERT "Loading module...");
 
     // Inicializacion de variables
-    mutex_init(&info.write_lock);
     timer_setup(&timer, interrupcion_temporizador, 0);
     init_waitqueue_head(&info.lista_bloq);
     spin_lock_init(&info.mute_slock);
     spin_lock_init(&info.irq_slock);
+    atomic_set(&info.opened, false);
     info.muted = false;
     info.fops = (struct file_operations) {
         .owner = THIS_MODULE,
@@ -144,9 +144,8 @@ static int open(struct inode *inode, struct file *filp) {
 
     } else if (filp->f_mode & FMODE_WRITE) {
 
-        if (atomic_long_read(&info.write_lock.owner) == 0) { // Dispositivo libre
+        if (!atomic_xchg(&info.opened, true)) { // Dispositivo libre
 
-            mutex_lock(&info.write_lock);
             if (DEBUG) printk(KERN_ALERT "Accediendo al fichero en modo escritura...");
 
         } else { // Dispositivo ocupado
@@ -159,7 +158,7 @@ static int open(struct inode *inode, struct file *filp) {
 }
 
 static int release(struct inode *inode, struct file *filp) {
-    mutex_unlock(&info.write_lock);
+    atomic_set(&info.opened, false);
     if (DEBUG) printk(KERN_ALERT "Liberando el acceso al fichero...");
     return 0;
 }
