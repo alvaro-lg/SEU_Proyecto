@@ -260,7 +260,7 @@ void interrupcion_temporizador(struct timer_list *timer) {
     else
         programar_sonido();
 
-    spin_lock_bh(&info.irq_slock);
+    spin_unlock_bh(&info.irq_slock);
 }
 
 void programar_sonido(void) {
